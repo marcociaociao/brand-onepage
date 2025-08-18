@@ -1,0 +1,4 @@
+CONTESTO
+- Repo contenitore, lavoro in VS Code.
+- Ogni modifica: file COMPLETI.
+- Se non sei sicuro, fammi domande prima.
