@@ -1,0 +1,23 @@
+name: CI Ping
+on:
+  push:
+    branches:
+      - main
+      - chore/github-check
+  pull_request:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Show LFS status
+        run: |
+          git lfs version || true
+          git lfs ls-files || true
+      - name: Node available
+        run: node --version || true
+      - name: Done
+        run: echo "CI pipeline OK ✅"
