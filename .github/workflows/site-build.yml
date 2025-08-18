@@ -1,0 +1,24 @@
+﻿name: Site Build
+on:
+  push:
+    branches: [ main, chore/github-check ]
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (pinned)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          lfs: true
+      - name: Use system Node (print)
+        run: node --version
+      - name: Install deps
+        working-directory: site
+        run: npm ci || npm i
+      - name: Lint
+        working-directory: site
+        run: npm run lint --if-present
+      - name: Build
+        working-directory: site
+        run: npm run build

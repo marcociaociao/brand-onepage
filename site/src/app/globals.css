@@ -1,0 +1,29 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html, body { height: 100%; background: #0a0a0a; }
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; color: #fff; }
+
+a { text-underline-offset: .25rem; }
+
+/* Skip to content */
+.skip-link{ position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden; }
+.skip-link:focus{
+  left:1rem; top:1rem; width:auto; height:auto; padding:.5rem .75rem;
+  background:#111; border:2px solid #fff; border-radius:.5rem;
+}
+
+/* Sections */
+.section { position:relative; height:100vh; width:100%; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.section-overlay { position:absolute; inset:0; background:linear-gradient(to bottom, rgba(0,0,0,.6), rgba(0,0,0,.4), rgba(0,0,0,.8)); }
+.section-inner { position:relative; z-index:10; max-width:56rem; padding:0 1.5rem; text-align:center; }
+.section-title { font-size:clamp(2rem,6vw,3.5rem); font-weight:600; }
+.section-sub { font-size:clamp(1rem,2.5vw,1.25rem); color:rgba(255,255,255,.8); }
+.cta { display:inline-block; margin-top:1rem; padding:.75rem 1.25rem; border-radius:.75rem; background:#fff; color:#000; font-weight:500; }
+
+/* Dot nav */
+.dotnav { position:fixed; right:1.5rem; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:.75rem; z-index:20; }
+.dotnav a { width:.75rem; height:.75rem; border-radius:9999px; background:rgba(255,255,255,.4); outline:none; box-shadow:0 0 0 2px transparent; display:block; }
+.dotnav a[aria-current="true"] { background:#fff; }
