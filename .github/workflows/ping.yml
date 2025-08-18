@@ -1,4 +1,4 @@
-name: CI Ping
+﻿name: CI Ping
 on:
   push:
     branches:
