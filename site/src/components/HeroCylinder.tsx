@@ -11,7 +11,7 @@ export default function HeroCylinder({
   primary = "#5c5fc4",
   accent = "#c4c15c",
   rings = 16,
-  fontSize = "clamp(2rem, 8vw, 5rem)"
+  fontSize = "clamp(1.6rem, 7.2vw, 4rem)"
 }: Props) {
   const spans = Array.from({ length: rings }, (_, i) => i + 1);
   return (

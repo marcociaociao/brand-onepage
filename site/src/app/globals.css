@@ -15,6 +15,7 @@ body {
   color: var(--fg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   font-family: var(--font-body), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
 }
 a { text-underline-offset: .25rem; }
@@ -26,60 +27,53 @@ a { text-underline-offset: .25rem; }
   background:#111; border:2px solid #fff; border-radius:.5rem;
 }
 
-/* Dot nav minimal (opzionale, lasciato com’era) */
+/* Dot nav */
 .dotnav { position:fixed; right:1.25rem; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:.6rem; z-index:50; }
 .dotnav a { width:.6rem; height:.6rem; border-radius:9999px; background:rgba(255,255,255,.35); outline:none; display:block; }
 .dotnav a[aria-current="true"] { background:#fff; }
 
-/* ===== Stage 3D sticky (fedele all’idea del Pen #1) ===== */
+/* ===== Stage 3D sticky ===== */
 .scene { position: relative; }
-.scene-spacer { height: 900vh; } /* spazio scroll complessivo (~8 items => 8*~100-120vh) */
 .scene-sticky {
   position: sticky; top: 0; height: 100vh; overflow: hidden;
-  perspective: 800px; perspective-origin: 50% 50%;
+  perspective: 1000px; perspective-origin: 50% 50%;
   background: var(--bg-hero);
 }
-.scene-layers {
-  position: relative; width: 100%; height: 100%;
-  transform-style: preserve-3d;
-}
-.layer {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  transform-style: preserve-3d; will-change: transform, opacity;
-  opacity: 0; /* we’ll drive opacity con JS per “windows” */
-}
+.scene-layers { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
+.layer { position: absolute; inset: 0; display: grid; place-items: center; transform-style: preserve-3d; will-change: transform, opacity; opacity: 0; }
+.layer-inner { max-width: min(92vw, 1300px); padding: 0 1rem; }
+.scene-spacer { height: 900vh; }
 
-/* Contenuto di ogni layer */
-.layer-inner {
-  max-width: min(92vw, 1300px);
-  padding: 0 1rem;
-}
-
-/* Hero (cilindro) */
-.hero-cyl { display:flex; align-items:center; justify-content:center; width:100%; height:100%; }
-.cyl-container { position:relative; width:min(95vw, 1400px); height: clamp(260px, 35vw, 420px); display:flex; align-items:center; justify-content:center; }
-.cyl-box { position:relative; transform-style: preserve-3d; }
+/* Hero cilindrico (più nitido, meno zoom, più lento) */
+.hero-cyl { display:flex; align-items:center; justify-content:center; width:100%; height:100vh; background: var(--bg-hero); }
+.cyl-container { position:relative; width:min(95vw, 1400px); height: clamp(220px, 32vw, 360px); display:flex; align-items:center; justify-content:center; }
+.cyl-box { position:relative; transform-style: preserve-3d; animation: cyl-anim 12s ease-in-out infinite alternate; }
 .cyl-box span {
   position:absolute; left:50%; top:50%;
   transform-style: preserve-3d;
-  transform: translate(-50%, -50%) rotateX(calc(var(--i) * 22.5deg)) translateZ(109px);
+  transform: translate(-50%, -50%) rotateX(calc(var(--i) * 22.5deg)) translateZ(85px);
   background: linear-gradient(90deg, rgba(0,0,0,0.10), rgba(0,0,0,0.5) 90%, transparent);
   text-transform: uppercase;
-  line-height: 0.76em;
+  line-height: 0.8em;
   color: #fff;
-  font-size: var(--cyl-font, clamp(2rem, 8vw, 5rem));
+  font-size: var(--cyl-font, clamp(1.6rem, 7.2vw, 4rem));
   white-space: nowrap;
   font-weight: 800;
-  letter-spacing: .04em;
-  padding: 0 12px;
-  text-shadow: 0 10px 15px rgba(0,0,0,0.30);
+  letter-spacing: .035em;
+  padding: 0 10px;
+  text-shadow: 0 8px 12px rgba(0,0,0,0.28);
   font-family: var(--font-display), sans-serif;
+  will-change: transform;
 }
 .cyl-box span i { font-style: normal; }
 .cyl-box span i:nth-child(1){ color: var(--cyl-primary, #5c5fc4); }
 .cyl-box span i:nth-child(2){ color: var(--cyl-accent, #c4c15c); }
+@keyframes cyl-anim {
+  0%   { transform: perspective(800px) rotateX(0deg) rotate(3deg); }
+  100% { transform: perspective(350px) rotateX(360deg) rotate(3deg); }
+}
 
-/* Placeholder video box */
+/* Video frame */
 .video-frame {
   width: min(92vw, 1400px);
   height: clamp(240px, 56vw, 680px);
@@ -89,27 +83,27 @@ a { text-underline-offset: .25rem; }
   outline: 1px solid rgba(255,255,255,.08);
   display: grid; place-items: center;
 }
-.video-label { color: #cfcfcf; letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
 
-/* Text block (20 righe) effetto tipo Pen #2 ma cross-browser via JS di default */
+/* Text block con blur iniziale */
 .text-wrap { width:min(92vw, 80ch); margin: 0 auto; }
 .text-title { font-family: var(--font-display), sans-serif; font-weight: 700; font-size: clamp(1.4rem, 3.2vw, 2.2rem); letter-spacing:.02em; margin-bottom: 1rem; }
 .text-lines { display: grid; gap: .1rem; }
-.text-line { line-height: 1.55; font-size: clamp(1.05rem, 1.8vw, 1.2rem); opacity: 0; transform: translateY(8px); will-change: opacity, transform; }
+.text-line { line-height: 1.6; font-size: clamp(1.05rem, 1.8vw, 1.22rem); opacity: 0; transform: translateY(8px); filter: blur(8px); will-change: opacity, transform, filter; }
 
 /* Finale placeholder */
 .final-wrap { text-align:center; }
 .final-title { font-family: var(--font-display), sans-serif; font-size: clamp(1.8rem, 3.8vw, 2.8rem); font-weight: 700; }
 .final-sub { color: var(--muted); margin-top: .5rem; }
 
-/* Mood base (cupo -> più chiaro verrà rifinito dopo) */
+/* Mood base */
 .page-grad {
   background:
     radial-gradient(1200px 1200px at 50% -10%, rgba(255,255,255,0.035), transparent 60%),
     var(--bg);
 }
 
-/* PRM: riduciamo motion (non disattiviamo del tutto per estetica migliore) */
+/* PRM soft */
 @media (prefers-reduced-motion: reduce) {
+  .cyl-box { animation: none; }
   .text-line { transform: none; }
 }

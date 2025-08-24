@@ -9,138 +9,127 @@ import CharReveal from "@/components/CharReveal";
 
 const disableMedia = process.env.NEXT_PUBLIC_DISABLE_MEDIA === "1";
 
-function makeParagraph(seed: string, lines = 20) {
+// test content ~20 righe (wrap naturale)
+function makeParagraph(seed: string, lines = 21) {
   const arr: string[] = [];
   for (let i = 0; i < lines; i++) {
     arr.push(
-      `${seed}. Riga ${String(i + 1).padStart(2, "0")} — il senso scorre con il gesto, i dettagli emergono e rientrano, senza interrompere la lettura.`
+      `${seed}. Riga ${String(i + 1).padStart(2, "0")} — il flusso continua e accompagna lo sguardo senza stacchi bruschi.`
     );
   }
-  // Uniamo in 3 paragrafi per blocco (≈20 righe totali con wrap naturale)
   const n = Math.ceil(arr.length / 3);
   return [arr.slice(0, n).join(" "), arr.slice(n, 2 * n).join(" "), arr.slice(2 * n).join(" ")];
 }
 
 export default function Page() {
+  // finestre larghe e regolari: 16% ciascuna, finale più corto
+  const ranges: [number, number][] = [
+    [0.00, 0.16], // V1  (scrub su tutta la finestra)
+    [0.16, 0.32], // T1  (reveal su tutta la finestra)
+    [0.32, 0.48], // V2
+    [0.48, 0.64], // T2
+    [0.64, 0.80], // V3
+    [0.80, 0.96], // T3
+    [0.96, 1.00], // Finale
+  ];
+
   const items: StageItem[] = useMemo(() => {
-    // Finestre custom b) su tutto lo scroll (0..1)
-    // 8 tappe: Hero, V1, T1, V2, T2, V3, T3, Final
-    const R = [
-      [0.00, 0.12], // Hero
-      [0.12, 0.25], // V1
-      [0.25, 0.37], // T1
-      [0.37, 0.50], // V2
-      [0.50, 0.62], // T2
-      [0.62, 0.75], // V3
-      [0.75, 0.87], // T3
-      [0.87, 1.00]  // Final
-    ] as [number, number][];
-
-    const hero: StageItem = {
-      id: "hero",
-      range: R[0],
-      node: (
-        <HeroCylinder
-          rings={16}
-          fontSize="clamp(2rem, 8vw, 5.5rem)"
-          primary="#5c5fc4"
-          accent="#c4c15c"
-        />
-      ),
-    };
-
     const v1: StageItem = {
       id: "video-1",
-      range: R[1],
+      range: ranges[0],
       node: (
         <ScrubVideo
           src={disableMedia ? "" : "/media/chap-01.mp4"}
           poster={"/media/chap-01.webp"}
-          start={R[1][0]}
-          end={R[1][1]}
+          start={ranges[0][0]}
+          end={ranges[0][1]}
         />
       ),
     };
-
     const t1: StageItem = {
       id: "text-1",
-      range: R[2],
+      range: ranges[1],
       node: (
         <CharReveal
           title="Origine — Intento"
-          paragraphs={makeParagraph("Origine e intenzione: un taglio di luce caldo che incide la scena")}
-          range={R[2]}
+          paragraphs={makeParagraph("Origine e intenzione, il tema si apre")}
+          range={ranges[1]}
         />
       ),
     };
-
     const v2: StageItem = {
       id: "video-2",
-      range: R[3],
+      range: ranges[2],
       node: (
         <ScrubVideo
           src={disableMedia ? "" : "/media/chap-02.mp4"}
           poster={"/media/chap-02.webp"}
-          start={R[3][0]}
-          end={R[3][1]}
+          start={ranges[2][0]}
+          end={ranges[2][1]}
         />
       ),
     };
-
     const t2: StageItem = {
       id: "text-2",
-      range: R[4],
+      range: ranges[3],
       node: (
         <CharReveal
           title="Materia — Texture"
-          paragraphs={makeParagraph("Texture e granularità: finte transizioni, sensazioni vere")}
-          range={R[4]}
+          paragraphs={makeParagraph("Materia e texture, transizioni finte ma tattili")}
+          range={ranges[3]}
         />
       ),
     };
-
     const v3: StageItem = {
       id: "video-3",
-      range: R[5],
+      range: ranges[4],
       node: (
         <ScrubVideo
           src={disableMedia ? "" : "/media/chap-03.mp4"}
           poster={"/media/chap-03.webp"}
-          start={R[5][0]}
-          end={R[5][1]}
+          start={ranges[4][0]}
+          end={ranges[4][1]}
         />
       ),
     };
-
     const t3: StageItem = {
       id: "text-3",
-      range: R[6],
+      range: ranges[5],
       node: (
         <CharReveal
           title="Forma — Sintesi"
-          paragraphs={makeParagraph("Il racconto si alleggerisce, il bianco entra piano: la forma prende respiro")}
-          range={R[6]}
+          paragraphs={makeParagraph("La forma alleggerisce, la narrazione prende respiro")}
+          range={ranges[5]}
         />
       ),
     };
-
     const fin: StageItem = {
       id: "final",
-      range: R[7],
+      range: ranges[6],
       node: (
         <div className="final-wrap">
           <h2 className="final-title">Finale — Gallery</h2>
-          <p className="final-sub">Qui inseriremo una strip di immagini con transizioni morbide.</p>
+          <p className="final-sub">Strip di immagini in transizione (placeholder).</p>
         </div>
       ),
     };
-
-    return [hero, v1, t1, v2, t2, v3, t3, fin];
-  }, []);
+    return [v1, t1, v2, t2, v3, t3, fin];
+  }, [ranges]);
 
   return (
     <main id="content" className="page-grad">
-      <DotNav ids={["hero", "video-1", "text-1", "video-2", "text-2", "video-3", "text-3", "final"]} />
+      {/* HERO visibile subito */}
+      <section id="hero-top" aria-label="Hero">
+        <HeroCylinder
+          rings={16}
+          fontSize="clamp(1.6rem, 7.2vw, 4rem)"
+          primary="#5c5fc4"
+          accent="#c4c15c"
+        />
+      </section>
+
+      {/* Sticky stage */}
+      <DotNav ids={["hero-top","video-1","text-1","video-2","text-2","video-3","text-3","final"]} />
       <Stage3D items={items} />
     </main>
   );
