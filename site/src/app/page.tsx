@@ -1,137 +1,152 @@
 ﻿"use client";
 
 import { useMemo } from "react";
-import DotNav from "@/components/DotNav";
 import Stage3D, { StageItem } from "@/components/Stage3D";
 import ScrubVideo from "@/components/ScrubVideo";
-import CharReveal from "@/components/CharReveal";
 
 const disableMedia = process.env.NEXT_PUBLIC_DISABLE_MEDIA === "1";
+const disablePosters = process.env.NEXT_PUBLIC_DISABLE_POSTERS === "1";
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-function makeParagraph(seed: string, lines = 21) {
-  const arr: string[] = [];
-  for (let i = 0; i < lines; i++) {
-    arr.push(
-      `${seed}. Riga ${String(i + 1).padStart(2, "0")} — il flusso continua e accompagna lo sguardo senza stacchi bruschi.`
-    );
-  }
-  const n = Math.ceil(arr.length / 3);
-  return [arr.slice(0, n).join(" "), arr.slice(n, 2 * n).join(" "), arr.slice(2 * n).join(" ")];
+function Para(seed: string, lines = 20) {
+  const arr = Array.from({ length: lines }, (_, i) =>
+    `${seed}. Riga ${String(i + 1).padStart(2, "0")} — il flusso accompagna lo sguardo senza stacchi bruschi.`
+  );
+  return (
+    <div className="text-wrap">
+      <h2 className="text-title">Sezione — {seed}</h2>
+      <div className="space-y-4 text-lg text-white/85">
+        {arr.map((t, i) => (
+          <p key={i}>{t}</p>
+          ))}
+      </div>
+    </div>
+  );
 }
 
 export default function Page() {
-  /**
-   * Finestre:
-   * - Video: 22% ciascuno (più tempo allo scrub)
-   * - Testi: 10% ciascuno (restano fluidi, ma più rapidi)
-   * - Finale: 4%
-   * Totale: 22+10+22+10+22+10+4 = 100%
-   */
+  // Timeline (0..1) della scena — più spazio ai video
   const ranges: [number, number][] = [
-    [0.00, 0.22], // V1
-    [0.22, 0.32], // T1
-    [0.32, 0.54], // V2
-    [0.54, 0.64], // T2
-    [0.64, 0.86], // V3
-    [0.86, 0.96], // T3
-    [0.96, 1.00], // Finale
+    [0.0, 0.14], // intro
+    [0.14, 0.42], // video 1
+    [0.42, 0.54], // testo 1
+    [0.54, 0.82], // video 2
+    [0.82, 0.92], // testo 2
+    [0.92, 1.0], // video 3
   ];
 
+  // Plateau locale largo per lo scrub (quasi tutto l'intervallo item)
+  const plateauLocal: [number, number] = [0.05, 0.95];
+
   const items: StageItem[] = useMemo(() => {
-    const v1: StageItem = {
-      id: "video-1",
-      range: ranges[0],
+    const [iS, iE] = ranges[0];
+    const [v1S, v1E] = ranges[1];
+    const [t1S, t1E] = ranges[2];
+    const [v2S, v2E] = ranges[3];
+    const [t2S, t2E] = ranges[4];
+    const [v3S, v3E] = ranges[5];
+
+    const proj = (s: number, e: number, t: number) => lerp(s, e, t);
+
+    const intro: StageItem = {
+      id: "intro",
+      range: [iS, iE],
       node: (
-        <ScrubVideo
-          src={disableMedia ? "" : "/media/chap-01.mp4"}
-          poster={"/media/chap-01.webp"}
-          start={ranges[0][0]}
-          end={ranges[0][1]}
-          centerStart
-          centerDeadzone={0.05}
-        />
-      ),
-    };
-    const t1: StageItem = {
-      id: "text-1",
-      range: ranges[1],
-      node: (
-        <CharReveal
-          title="Origine — Intento"
-          paragraphs={makeParagraph("Origine e intenzione, il tema si apre")}
-          range={ranges[1]}
-          centerStart
-        />
-      ),
-    };
-    const v2: StageItem = {
-      id: "video-2",
-      range: ranges[2],
-      node: (
-        <ScrubVideo
-          src={disableMedia ? "" : "/media/chap-02.mp4"}
-          poster={"/media/chap-02.webp"}
-          start={ranges[2][0]}
-          end={ranges[2][1]}
-          centerStart
-          centerDeadzone={0.05}
-        />
-      ),
-    };
-    const t2: StageItem = {
-      id: "text-2",
-      range: ranges[3],
-      node: (
-        <CharReveal
-          title="Materia — Texture"
-          paragraphs={makeParagraph("Materia e texture, transizioni finte ma tattili")}
-          range={ranges[3]}
-          centerStart
-        />
-      ),
-    };
-    const v3: StageItem = {
-      id: "video-3",
-      range: ranges[4],
-      node: (
-        <ScrubVideo
-          src={disableMedia ? "" : "/media/chap-03.mp4"}
-          poster={"/media/chap-03.webp"}
-          start={ranges[4][0]}
-          end={ranges[4][1]}
-          centerStart
-          centerDeadzone={0.05}
-        />
-      ),
-    };
-    const t3: StageItem = {
-      id: "text-3",
-      range: ranges[5],
-      node: (
-        <CharReveal
-          title="Forma — Sintesi"
-          paragraphs={makeParagraph("La forma alleggerisce, la narrazione prende respiro")}
-          range={ranges[5]}
-          centerStart
-        />
-      ),
-    };
-    const fin: StageItem = {
-      id: "final",
-      range: ranges[6],
-      node: (
-        <div className="final-wrap">
-          <h2 className="final-title">Finale — Gallery</h2>
-          <p className="final-sub">Strip di immagini in transizione (placeholder).</p>
+        <div style={{ textAlign: "center" }}>
+          <h1
+            className="text-[clamp(2rem,8vw,6rem)] font-black tracking-tight"
+            style={{ letterSpacing: ".02em" }}
+          >
+            HAZE IN THE BUILDING
+          </h1>
+          <p className="mt-4 text-white/70">Scroll per entrare</p>
         </div>
       ),
     };
-    return [v1, t1, v2, t2, v3, t3, fin];
-  }, [ranges, disableMedia]);
+
+    // Video 1
+    const v1PlateauScene: [number, number] = [
+      proj(v1S, v1E, plateauLocal[0]),
+      proj(v1S, v1E, plateauLocal[1]),
+    ];
+    const video1: StageItem = {
+      id: "video-1",
+      range: [v1S, v1E],
+      plateau: plateauLocal,
+      zPlateau: 0,
+      node: (
+        <ScrubVideo
+          src={disableMedia ? "" : "/media/chap-01.mp4"}
+          poster={disablePosters ? undefined : "/media/chap-01.webp"}
+          activeStart={v1PlateauScene[0]}
+          activeEnd={v1PlateauScene[1]}
+          freezeOutside
+          debug={true}
+        />
+      ),
+    };
+
+    const text1: StageItem = {
+      id: "text-1",
+      range: [t1S, t1E],
+      node: Para("Origine — Intento"),
+    };
+
+    // Video 2
+    const v2PlateauScene: [number, number] = [
+      proj(v2S, v2E, plateauLocal[0]),
+      proj(v2S, v2E, plateauLocal[1]),
+    ];
+    const video2: StageItem = {
+      id: "video-2",
+      range: [v2S, v2E],
+      plateau: plateauLocal,
+      zPlateau: 0,
+      node: (
+        <ScrubVideo
+          src={disableMedia ? "" : "/media/chap-02.mp4"}
+          poster={disablePosters ? undefined : "/media/chap-02.webp"}
+          activeStart={v2PlateauScene[0]}
+          activeEnd={v2PlateauScene[1]}
+          freezeOutside
+          debug={true}
+        />
+      ),
+    };
+
+    const text2: StageItem = {
+      id: "text-2",
+      range: [t2S, t2E],
+      node: Para("Materia — Texture"),
+    };
+
+    // Video 3
+    const v3PlateauScene: [number, number] = [
+      proj(v3S, v3E, plateauLocal[0]),
+      proj(v3S, v3E, plateauLocal[1]),
+    ];
+    const video3: StageItem = {
+      id: "video-3",
+      range: [v3S, v3E],
+      plateau: plateauLocal,
+      zPlateau: 0,
+      node: (
+        <ScrubVideo
+          src={disableMedia ? "" : "/media/chap-03.mp4"}
+          poster={disablePosters ? undefined : "/media/chap-03.webp"}
+          activeStart={v3PlateauScene[0]}
+          activeEnd={v3PlateauScene[1]}
+          freezeOutside
+          debug={true}
+        />
+      ),
+    };
+
+    return [intro, video1, text1, video2, text2, video3];
+  }, [ranges, disableMedia, disablePosters]);
 
   return (
     <main id="content" className="page-grad">
-      <DotNav ids={["video-1","text-1","video-2","text-2","video-3","text-3","final"]} />
       <Stage3D items={items} />
     </main>
   );

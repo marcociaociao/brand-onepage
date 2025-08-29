@@ -3,63 +3,173 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * ScrubVideo (center-start, scroll-locked)
- * - La finestra globale dell'item è [start, end] in 0..1 (progresso documento).
- * - Il video resta fermo finché non attraversi il "centro" della finestra.
- * - Da (centro - deadzone) fino a end, lo scroll mappa linearmente 0..dur.
- * - Se risali, va indietro; se torni prima del centro-deadzone, torna a 0.
+ * ScrubVideo — scroll-time su <video> in plateau [activeStart, activeEnd] (0..1 scena).
+ * - Prime automatico (play→pause) al primo ingresso nel plateau
+ * - Seek affidabile: currentTime → attesa di frame (RVFC o 'seeked')
+ * - Freeze ultimo frame fuori dal plateau
  */
+
+type RVFC = ((
+  cb: (now: number, meta: VideoFrameCallbackMetadata) => void
+) => number) | undefined;
+
 export default function ScrubVideo({
   src,
   poster,
-  start = 0,
-  end = 1,
-  centerStart = true,
-  centerDeadzone = 0.05, // ±5% della finestra
+  activeStart,
+  activeEnd,
+  freezeOutside = true,
+  debug = true,
 }: {
   src: string;
   poster?: string;
-  start?: number;        // 0..1
-  end?: number;          // 0..1
-  centerStart?: boolean; // true = parte al centro
-  centerDeadzone?: number; // 0..0.2 circa
+  activeStart: number;
+  activeEnd: number;
+  freezeOutside?: boolean;
+  debug?: boolean;
 }) {
   const vref = useRef<HTMLVideoElement | null>(null);
+
+  const [ready, setReady] = useState(false);
   const [dur, setDur] = useState(0);
+  const [sceneP, setSceneP] = useState(0);
+  const [cur, setCur] = useState(0);
+
+  const rafRef = useRef(0);
+  const rvfcIdRef = useRef(0);
+  const seekingRef = useRef(false);
+  const primedRef = useRef(false);
+  const enteredRef = useRef(false);
+  const lastTargetRef = useRef(0);
+
+  const s0 = Math.min(activeStart, activeEnd);
+  const s1 = Math.max(activeStart, activeEnd);
+
+  const getSceneProgress = () => {
+    const el = vref.current;
+    if (!el) return 0;
+    const scene = el.closest(".scene") as HTMLElement | null;
+    if (!scene) return 0;
+
+    const vh = window.innerHeight;
+    const rect = scene.getBoundingClientRect();
+    const scrollable = Math.max(1, scene.offsetHeight - vh);
+
+    if (rect.top >= 0) return 0;
+    if (rect.bottom <= vh) return 1;
+    return Math.max(0, Math.min(1, -rect.top / scrollable));
+  };
+
+  const primeVideo = async (v: HTMLVideoElement) => {
+    if (primedRef.current) return;
+    try {
+      v.muted = true;
+      await v.play();
+      await v.pause();
+      primedRef.current = true;
+    } catch {
+      // Se fallisce per qualsiasi motivo, proseguiamo: i seek funzioneranno comunque.
+    }
+  };
+
+  const seekTo = (v: HTMLVideoElement, t: number) => {
+    // Evita di martellare lo stesso target
+    if (Math.abs(t - lastTargetRef.current) < 0.0005) return;
+    lastTargetRef.current = t;
+    seekingRef.current = true;
+    v.currentTime = t;
+
+    const rvfc = (v as any).requestVideoFrameCallback as RVFC;
+    if (rvfc) {
+      if (rvfcIdRef.current) (v as any).cancelVideoFrameCallback?.(rvfcIdRef.current);
+      rvfcIdRef.current = rvfc(() => {
+        seekingRef.current = false;
+        setCur(v.currentTime);
+      });
+    } else {
+      const onSeeked = () => {
+        v.removeEventListener("seeked", onSeeked);
+        seekingRef.current = false;
+        setCur(v.currentTime);
+      };
+      v.addEventListener("seeked", onSeeked, { once: true });
+    }
+  };
+
+  const loop = () => {
+    const v = vref.current;
+    if (v) {
+      const p = getSceneProgress();
+      setSceneP(p);
+
+      const d = dur || v.duration || 0;
+      if (ready && d > 0) {
+        if (p <= s0) {
+          const t = enteredRef.current && freezeOutside ? lastTargetRef.current : 0.001;
+          if (!seekingRef.current) seekTo(v, t);
+        } else if (p >= s1) {
+          const t = Math.max(0.001, d);
+          if (!seekingRef.current) seekTo(v, t);
+          enteredRef.current = true;
+        } else {
+          // dentro plateau → mappa lineare
+          const t01 = (p - s0) / (s1 - s0);
+          const t = Math.max(0.001, t01 * d);
+          // prime al primo ingresso
+          if (!primedRef.current) primeVideo(v);
+          if (!seekingRef.current) seekTo(v, t);
+          enteredRef.current = true;
+        }
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(loop);
+  };
 
   useEffect(() => {
-    const onScroll = () => {
-      const v = vref.current;
-      if (!v || dur <= 0) return;
+    const v = vref.current;
 
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      const p = max > 0 ? window.scrollY / max : 0; // 0..1 globale
-
-      // Fuori finestra → clamp (0 o dur)
-      if (p <= start) { v.currentTime = 0; return; }
-      if (p >= end)   { v.currentTime = dur; return; }
-
-      // Start effettivo: centro - deadzone (se centerStart) oppure start
-      const mid = start + (end - start) * (centerStart ? 0.5 : 0.0);
-      const sEff = centerStart ? Math.max(start, mid - (end - start) * centerDeadzone) : start;
-
-      if (p <= sEff) {
-        v.currentTime = 0; // fermo fino al centro (con deadzone)
-        return;
-      }
-
-      // Mappo linearmente sEff..end -> 0..dur
-      const local = (p - sEff) / (end - sEff); // 0..1
-      v.currentTime = local * dur;
+    const onLoadedMetadata = () => {
+      if (!v) return;
+      if (v.duration > 0) setDur(v.duration);
+      if (v.readyState >= 2) setReady(true);
+    };
+    const onCanPlay = () => {
+      if (!v) return;
+      if (v.duration > 0) setDur(v.duration);
+      setReady(true);
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [start, end, dur, centerStart, centerDeadzone]);
+    if (v) {
+      v.preload = "auto";
+      v.muted = true;
+      v.playsInline = true;
+      v.pause();
+      if (v.readyState >= 2 && v.duration > 0) onCanPlay();
+      else if (v.readyState >= 1 && v.duration > 0) onLoadedMetadata();
+
+      v.addEventListener("loadedmetadata", onLoadedMetadata);
+      v.addEventListener("canplay", onCanPlay);
+    }
+
+    rafRef.current = requestAnimationFrame(loop);
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      if (v) {
+        v.removeEventListener("loadedmetadata", onLoadedMetadata);
+        v.removeEventListener("canplay", onCanPlay);
+        const rvfc = (v as any).requestVideoFrameCallback as RVFC;
+        if (rvfc && rvfcIdRef.current) {
+          (v as any).cancelVideoFrameCallback?.(rvfcIdRef.current);
+        }
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src, s0, s1, freezeOutside]);
 
   return (
-    <div className="video-frame">
+    <div className="video-frame relative">
       <video
         ref={vref}
         className="w-full h-full object-cover"
@@ -67,12 +177,20 @@ export default function ScrubVideo({
         poster={poster}
         muted
         playsInline
-        preload="metadata"
-        onLoadedMetadata={() => {
-          if (vref.current) setDur(vref.current.duration || 0);
-        }}
+        preload="auto"
+        crossOrigin="anonymous"
       />
-      {!src && <span className="video-label">Video Placeholder</span>}
+      {debug && (
+        <div className="absolute left-2 bottom-2 text-[12px] leading-[1.1] bg-black/60 px-2 py-1 rounded">
+          <div>ready: {String(ready)}</div>
+          <div>dur: {dur.toFixed(2)}s</div>
+          <div>scene: {(sceneP * 100).toFixed(1)}%</div>
+          <div>time: {cur.toFixed(2)}s</div>
+          <div>
+            plateau: {(s0 * 100).toFixed(1)}% → {(s1 * 100).toFixed(1)}%
+          </div>
+        </div>
+      )}
     </div>
   );
 }
